@@ -1,0 +1,72 @@
+/* style.css */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    margin: 0; /* 移除默认的 body margin */
+    padding: 20px;
+    background-color: #f9f9f9;
+    color: #333;
+    display: flex; /* 使用 Flexbox 居中容器 */
+    justify-content: center; /* 水平居中 */
+    align-items: flex-start; /* 垂直靠上（或根据需要调整） */
+    min-height: 100vh; /* 确保 body 至少占满视口高度 */
+}
+
+.container {
+    max-width: 800px;
+    width: 100%; /* 确保容器在小屏幕上也能铺满 */
+    background: #fff;
+    padding: 30px; /* 增加内边距 */
+    border-radius: 10px; /* 更圆润的角 */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1); /* 更柔和的阴影 */
+    box-sizing: border-box; /* padding 和 border 包含在宽度内 */
+}
+
+h1 {
+    text-align: center;
+    color: #0056b3;
+    margin-top: 0; /* 移除 H1 的默认上外边距 */
+    margin-bottom: 30px;
+    font-size: 2.2em; /* 标题字体稍大 */
+}
+
+.nav-list {
+    list-style: none; /* 移除默认列表样式 */
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item {
+    margin-bottom: 20px; /* 增大条目之间的间距 */
+    border-bottom: 1px solid #e0e0e0; /* 更浅的分隔线 */
+    padding-bottom: 20px;
+    transition: all 0.3s ease; /* 添加过渡效果 */
+}
+
+.nav-item:last-child {
+    border-bottom: none; /* 最后一个不显示分隔线 */
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.nav-link {
+    text-decoration: none; /* 移除下划线 */
+    color: #007bff;
+    font-size: 1.15em; /* 链接字体稍大 */
+    display: block; /* 让整个区域可点击 */
+    padding: 12px 15px; /* 增加链接的点击区域 */
+    border-radius: 5px;
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease; /* 添加更多过渡效果 */
+    cursor: pointer; /* 鼠标悬停时显示手型 */
+}
+
+.nav-link:hover {
+    background-color: #007bff; /* 悬停时背景色 */
+    color: #fff; /* 悬停时文字颜色 */
+    transform: translateY(-2px); /* 轻微向上移动 */
+}
+
+.nav-link:active {
+    transform: translateY(0); /* 点击时恢复原位 */
+}
