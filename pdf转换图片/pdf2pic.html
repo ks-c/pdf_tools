@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 批量转图片工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-6 flex justify-center">
+
+    <div class="bg-white shadow-2xl rounded-xl w-full max-w-4xl border border-gray-200 flex flex-col overflow-hidden">
+        
+        <!-- 头部 -->
+        <div class="p-4 border-b bg-gray-50 flex justify-between items-center shrink-0">
+            <h1 class="text-lg font-bold text-gray-800">📄 PDF 批量转图片工具</h1>
+        </div>
+        
+        <div class="flex flex-1 overflow-hidden h-[600px]">
+            <!-- 左侧：参数设置区 -->
+            <div class="w-1/2 border-r border-gray-200 p-5 overflow-y-auto space-y-5 bg-white">
+                
+                <!-- 输出目录 -->
+                <div class="flex items-center gap-2 bg-blue-50 p-2 rounded border border-blue-100">
+                    <button id="selectDirBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded text-sm transition">
+                        📁 设定输出目录
+                    </button>
+                    <span id="dirLabel" class="text-xs text-gray-500 truncate flex-1">未选 (默认直接单独下载图片)</span>
+                </div>
+
+                <!-- 转换参数 -->
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-gray-700 w-20">转换页码</label>
+                        <input type="text" id="pageRange" value="全部" class="flex-1 border rounded p-1.5 text-sm" placeholder="例: 1,3,5-8 或 全部">
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-gray-700 w-20">图片格式</label>
+                        <select id="imgFormat" class="flex-1 border rounded p-1.5 text-sm bg-gray-50">
+                            <option value="image/png">PNG</option>
+                            <option value="image/jpeg">JPG</option>
+                            <option value="image/webp">WebP</option>
+                            <option value="image/svg+xml">SVG</option>
+                        </select>
+                    </div>
+
+                    <div id="qualityContainer" class="flex items-center gap-2 hidden">
+                        <label class="text-sm font-bold text-gray-700 w-20">图片画质</label>
+                        <input type="range" id="imgQuality" min="0.1" max="1.0" step="0.1" value="0.9" class="flex-1">
+                        <span id="qualityVal" class="text-xs text-gray-500 w-8">90%</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-gray-700 w-20">清晰度(DPI)</label>
+                        <input type="number" id="dpiInput" value="300" min="72" class="flex-1 border rounded p-1.5 text-sm" placeholder="如: 300">
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-gray-700 w-20">输出模式</label>
+                        <select id="outputMode" class="flex-1 border rounded p-1.5 text-sm bg-gray-50">
+                            <option value="per_page">每页独立图片</option>
+                            <option value="single_image">合并为一张长图</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm font-bold text-gray-700 w-20">文件前缀</label>
+                        <input type="text" id="filePrefix" value="" class="flex-1 border rounded p-1.5 text-sm" placeholder="可选 (例: draft_)">
+                    </div>
+                </div>
+
+                <!-- 控制按钮 -->
+                <div class="pt-2">
+                    <button id="startBtn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded shadow transition-colors text-lg disabled:bg-gray-400">
+                        开始批量转换
+                    </button>
+                    <div id="globalProgressContainer" class="mt-3 hidden">
+                        <div class="flex justify-between text-xs text-gray-600 mb-1">
+                            <span id="globalStatus" class="truncate pr-2">正在处理...</span>
+                            <span id="globalPercent">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="globalProgressBar" class="bg-green-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：文件列表区 -->
+            <div class="w-1/2 p-5 bg-gray-50 flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="font-bold text-gray-700 text-sm">待处理队列</span>
+                    <div class="space-x-2">
+                        <label class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs py-1.5 px-3 rounded cursor-pointer transition">
+                            + 添加文件
+                            <input type="file" id="fileInput" accept=".pdf" multiple class="hidden">
+                        </label>
+                        <button id="clearBtn" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs py-1.5 px-3 rounded transition">清空</button>
+                    </div>
+                </div>
+                
+                <div id="dropZone" class="flex-1 border-2 border-dashed border-gray-300 rounded-lg bg-white overflow-y-auto p-2 relative">
+                    <div id="emptyHint" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
+                        <p class="text-sm">拖拽 PDF 文件至此处</p>
+                    </div>
+                    <ul id="fileList" class="space-y-2 z-10 relative"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let fileQueue = []; 
+        let directoryHandle = null; 
+
+        // UI 交互
+        const imgFormatSel = document.getElementById('imgFormat');
+        const qualityContainer = document.getElementById('qualityContainer');
+        const imgQuality = document.getElementById('imgQuality');
+        
+        imgFormatSel.addEventListener('change', (e) => {
+            if(e.target.value === 'image/jpeg' || e.target.value === 'image/webp') qualityContainer.classList.remove('hidden');
+            else qualityContainer.classList.add('hidden');
+        });
+        imgQuality.addEventListener('input', (e) => { document.getElementById('qualityVal').innerText = Math.round(e.target.value * 100) + '%'; });
+
+        // 输出目录
+        const selectDirBtn = document.getElementById('selectDirBtn');
+        const dirLabel = document.getElementById('dirLabel');
+        
+        if ('showDirectoryPicker' in window) {
+            selectDirBtn.addEventListener('click', async () => {
+                try {
+                    directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    dirLabel.innerText = directoryHandle.name;
+                    dirLabel.classList.replace('text-gray-500', 'text-green-600');
+                    dirLabel.classList.add('font-bold');
+                } catch (e) { }
+            });
+        } else {
+            selectDirBtn.disabled = true;
+            dirLabel.innerText = "浏览器不支持本地目录，将触发普通下载";
+        }
+
+        // 文件队列管理
+        const fileInput = document.getElementById('fileInput');
+        const fileListUI = document.getElementById('fileList');
+        const emptyHint = document.getElementById('emptyHint');
+        const dropZone = document.getElementById('dropZone');
+
+        fileInput.addEventListener('change', (e) => addFiles(e.target.files));
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-400', 'bg-blue-50'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-400', 'bg-blue-50'); });
+        dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-400', 'bg-blue-50'); if (e.dataTransfer.files) addFiles(e.dataTransfer.files); });
+        document.getElementById('clearBtn').addEventListener('click', () => { fileQueue = []; renderFileList(); });
+
+        function addFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.type === "application/pdf" && !fileQueue.some(f => f.name === file.name)) {
+                    fileQueue.push({ file: file, status: 'pending', current: 0, pages: 0 });
+                }
+            });
+            renderFileList();
+        }
+
+        function removeFile(index) { fileQueue.splice(index, 1); renderFileList(); }
+
+        function renderFileList() {
+            fileListUI.innerHTML = '';
+            if (fileQueue.length > 0) emptyHint.classList.add('hidden'); else emptyHint.classList.remove('hidden');
+
+            fileQueue.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-gray-50 border border-gray-200 p-2.5 rounded text-sm";
+                
+                let statusHtml = '';
+                if(item.status === 'pending') statusHtml = `<span class="text-gray-400 text-xs">等待中</span><button onclick="removeFile(${index})" class="text-red-500 hover:text-red-700 ml-2">✖</button>`;
+                else if(item.status === 'processing') statusHtml = `<span class="text-blue-600 font-bold text-xs">${item.current}/${item.pages}</span>`;
+                else if(item.status === 'done') statusHtml = `<span class="text-green-600 font-bold text-xs">✅ 完成</span>`;
+                else if(item.status === 'error') statusHtml = `<span class="text-red-600 font-bold text-xs">❌ 失败</span>`;
+
+                li.innerHTML = `<span class="truncate flex-1 font-semibold text-gray-700" title="${item.file.name}">${item.file.name}</span><div class="flex items-center gap-2 w-20 justify-end">${statusHtml}</div>`;
+                fileListUI.appendChild(li);
+            });
+        }
+
+        function parsePageNumbers(pageStr, totalPages) {
+            pageStr = pageStr.trim().toLowerCase();
+            if (!pageStr || pageStr === "all" || pageStr === "全部") return Array.from({length: totalPages}, (_, i) => i + 1);
+            let pages = new Set();
+            try {
+                for (let part of pageStr.split(',')) {
+                    part = part.trim();
+                    if (part.includes('-')) {
+                        let [start, end] = part.split('-').map(Number);
+                        if (start < 1 || end > totalPages || start > end || isNaN(start) || isNaN(end)) throw new Error();
+                        for (let i = start; i <= end; i++) pages.add(i);
+                    } else {
+                        let pageNum = Number(part);
+                        if (pageNum < 1 || pageNum > totalPages || isNaN(pageNum)) throw new Error();
+                        pages.add(pageNum);
+                    }
+                }
+            } catch (e) { return null; }
+            return Array.from(pages).sort((a, b) => a - b);
+        }
+
+        function canvasToSVG(canvas) {
+            const dataUrl = canvas.toDataURL('image/png');
+            const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${canvas.width}" height="${canvas.height}"><image href="${dataUrl}" width="${canvas.width}" height="${canvas.height}" /></svg>`;
+            return new Blob([svgContent.trim()], { type: 'image/svg+xml' });
+        }
+
+        async function saveFileDirectly(blob, filename) {
+            if (directoryHandle) {
+                const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+            } else {
+                // 彻底取消 ZIP，直接触发独立下载
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                // 稍微等待，防止浏览器阻截大量连续下载请求
+                await new Promise(r => setTimeout(r, 100));
+            }
+        }
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            if (fileQueue.length === 0) return alert("请先添加待处理的 PDF 文件！");
+            
+            const pageInput = document.getElementById('pageRange').value;
+            const mimeType = document.getElementById('imgFormat').value;
+            const quality = parseFloat(document.getElementById('imgQuality').value);
+            const ext = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'image/svg+xml' ? 'svg' : mimeType.split('/')[1];
+            const outputMode = document.getElementById('outputMode').value;
+            const prefix = document.getElementById('filePrefix').value.trim();
+            let dpiVal = parseInt(document.getElementById('dpiInput').value);
+            if (isNaN(dpiVal) || dpiVal <= 0) dpiVal = 300;
+            const scale = dpiVal / 72;
+
+            const startBtn = document.getElementById('startBtn');
+            startBtn.disabled = true;
+            document.getElementById('globalProgressContainer').classList.remove('hidden');
+            const gPercent = document.getElementById('globalPercent');
+            const gBar = document.getElementById('globalProgressBar');
+            const gStatus = document.getElementById('globalStatus');
+
+            for (let fIdx = 0; fIdx < fileQueue.length; fIdx++) {
+                const item = fileQueue[fIdx];
+                if (item.status === 'done') continue;
+
+                item.status = 'processing';
+                gStatus.innerText = item.file.name;
+                gPercent.innerText = Math.round((fIdx / fileQueue.length) * 100) + '%';
+                gBar.style.width = Math.round((fIdx / fileQueue.length) * 100) + '%';
+
+                try {
+                    const arrayBuffer = await item.file.arrayBuffer();
+                    const pdfDoc = await pdfjsLib.getDocument(new Uint8Array(arrayBuffer)).promise;
+                    item.pages = pdfDoc.numPages;
+                    
+                    const pagesToConvert = parsePageNumbers(pageInput, pdfDoc.numPages);
+                    if (!pagesToConvert) throw new Error("页码无效");
+
+                    const baseName = item.file.name.replace(/\.[^/.]+$/, "");
+                    let longCanvases = [];
+                    let totalHeight = 0, maxWidth = 0;
+
+                    for (let pIdx = 0; pIdx < pagesToConvert.length; pIdx++) {
+                        const pageNum = pagesToConvert[pIdx];
+                        item.current = pageNum;
+                        renderFileList(); 
+
+                        const page = await pdfDoc.getPage(pageNum);
+                        const viewport = page.getViewport({ scale: scale });
+                        
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        await page.render({ canvasContext: ctx, viewport: viewport, background: 'white' }).promise;
+
+                        if (outputMode === 'per_page') {
+                            const fileName = `${prefix}${baseName}_${pageNum}.${ext}`;
+                            let blob = mimeType === 'image/svg+xml' ? canvasToSVG(canvas) : await new Promise(res => canvas.toBlob(res, mimeType, quality));
+                            await saveFileDirectly(blob, fileName);
+                        } else {
+                            longCanvases.push(canvas);
+                            totalHeight += canvas.height;
+                            if (canvas.width > maxWidth) maxWidth = canvas.width;
+                        }
+                    }
+
+                    if (outputMode === 'single_image' && longCanvases.length > 0) {
+                        const mergedCanvas = document.createElement('canvas');
+                        mergedCanvas.width = maxWidth;
+                        mergedCanvas.height = totalHeight;
+                        const ctx = mergedCanvas.getContext('2d');
+                        ctx.fillStyle = "white"; ctx.fillRect(0, 0, maxWidth, totalHeight);
+                        
+                        let currentY = 0;
+                        for (let c of longCanvases) {
+                            ctx.drawImage(c, 0, currentY);
+                            currentY += c.height;
+                        }
+
+                        const fileName = `${prefix}${baseName}_merged.${ext}`;
+                        let blob = mimeType === 'image/svg+xml' ? canvasToSVG(mergedCanvas) : await new Promise(res => mergedCanvas.toBlob(res, mimeType, quality));
+                        await saveFileDirectly(blob, fileName);
+                    }
+
+                    item.status = 'done';
+                } catch (err) {
+                    item.status = 'error';
+                }
+                renderFileList();
+            }
+
+            gBar.style.width = '100%';
+            gPercent.innerText = '100%';
+            gStatus.innerText = "全部转换完成";
+            startBtn.disabled = false;
+            
+            // 提示防拦截
+            if (!directoryHandle && outputMode === 'per_page') {
+                setTimeout(() => alert("如果浏览器弹出【是否允许下载多个文件】，请务必点击【允许】，否则只能下载第一张图片！"), 500);
+            }
+        });
+    </script>
+</body>
+</html>
